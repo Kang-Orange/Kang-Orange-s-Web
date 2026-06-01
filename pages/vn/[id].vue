@@ -28,7 +28,7 @@ const vn = computed(() => getVNById(Number(route.params.id)))
             <img
               :src="vn.cover_url"
               :alt="vn.title"
-              class="w-full aspect-[3/4] object-cover"
+              :style="{ aspectRatio: useCoverConfig().aspectRatio }" class="w-full object-cover"
             />
           </div>
         </div>

@@ -8,7 +8,7 @@ const error = ref(false)
 </script>
 
 <template>
-  <div class="aspect-[3/4] bg-gray-700 rounded-t-lg overflow-hidden relative group">
+  <div class="bg-gray-700 rounded-t-lg overflow-hidden relative group" :style="{ aspectRatio: useCoverConfig().aspectRatio }">
     <img
       v-if="!error"
       :src="src"
