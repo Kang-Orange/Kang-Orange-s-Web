@@ -27,10 +27,20 @@ const searchQuery = ref('')
 const selectedTags = ref<string[]>([])
 const sortField = ref<SortField>('release_date')
 const sortOrder = ref<SortOrder>('desc')
+const vnList = ref<VNEntry[]>([])
+const allTags = ref<{ name: string; category: string | null }[]>([])
 
 export function useVNData() {
-  const { data: vnList } = useAsyncData<VNEntry[]>('vn-entries', () => $fetch('/api/entries'), { default: () => [] })
-  const { data: allTags } = useAsyncData<string[]>('vn-tags', () => $fetch('/api/tags'), { default: () => [] })
+  const { data: vnEntries } = useAsyncData<VNEntry[]>('vn-entries', () => $fetch('/api/entries'), { default: () => vnList.value })
+  const { data: vnTags } = useAsyncData<{ name: string; category: string | null }[]>('vn-tags', () => $fetch('/api/tags'), { default: () => allTags.value })
+
+  // Immediately sync available data (covers SSR re-render and client hydration)
+  if (vnEntries.value && vnEntries.value.length > 0) vnList.value = vnEntries.value
+  if (vnTags.value && vnTags.value.length > 0) allTags.value = vnTags.value
+
+  // Also watch for later updates (e.g. client-side re-fetch after browser back)
+  watch(vnEntries, (v) => { if (v && v.length > 0) vnList.value = v })
+  watch(vnTags, (t) => { if (t && t.length > 0) allTags.value = t })
 
   function toggleTag(tag: string) {
     const idx = selectedTags.value.indexOf(tag)
@@ -90,6 +100,11 @@ export function useVNData() {
   const getVNById = (id: number): VNEntry | undefined =>
     (vnList.value || []).find(v => v.id === id)
 
+  function refreshVNData() {
+    refreshNuxtData('vn-entries')
+    refreshNuxtData('vn-tags')
+  }
+
   return {
     vnList,
     allTags,
@@ -101,6 +116,7 @@ export function useVNData() {
     filteredList,
     toggleTag,
     setSortField,
-    getVNById
+    getVNById,
+    refreshVNData
   }
 }

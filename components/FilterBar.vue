@@ -17,6 +17,36 @@ const sortFieldOptions: { value: SortField; label: string }[] = [
   { value: 'release_date', label: '发行日期' },
   { value: 'play_date', label: '游玩日期' }
 ]
+
+// Group tags by category
+const taggedGroups = computed(() => {
+  const groups: Record<string, { name: string; category: string | null }[]> = {}
+  for (const tag of allTags.value) {
+    const key = tag.category || '其他'
+    if (!groups[key]) groups[key] = []
+    groups[key].push(tag)
+  }
+  return Object.entries(groups).sort(([a], [b]) => {
+    // "其他" always last
+    if (a === '其他') return 1
+    if (b === '其他') return -1
+    return a.localeCompare(b)
+  })
+})
+
+// Track which groups are collapsed
+const collapsedGroups = ref<Set<string>>(new Set())
+function toggleGroup(name: string) {
+  if (collapsedGroups.value.has(name)) {
+    collapsedGroups.value.delete(name)
+  } else {
+    collapsedGroups.value.add(name)
+  }
+}
+
+function selectedInGroup(tags: { name: string }[]) {
+  return tags.filter(t => selectedTags.value.includes(t.name)).length
+}
 </script>
 
 <template>
@@ -50,23 +80,43 @@ const sortFieldOptions: { value: SortField; label: string }[] = [
       </div>
     </div>
 
-    <!-- Tag Filter Chips -->
-    <div class="flex flex-wrap gap-2">
-      <button
-        v-for="tag in allTags"
-        :key="tag"
-        @click="toggleTag(tag)"
-        class="px-2.5 py-1 text-xs rounded-full border transition-colors"
-        :class="selectedTags.includes(tag)
-          ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
-          : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-600'"
-      >
-        {{ tag }}
-      </button>
+    <!-- Tag Groups -->
+    <div class="space-y-2">
+      <div v-for="[groupName, tags] in taggedGroups" :key="groupName">
+        <!-- Group header -->
+        <button
+          @click="toggleGroup(groupName)"
+          class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors py-0.5"
+        >
+          <span class="transition-transform" :class="collapsedGroups.has(groupName) ? '' : 'rotate-90'">
+            &#9654;
+          </span>
+          <span>{{ groupName }}</span>
+          <span v-if="selectedInGroup(tags) > 0" class="text-indigo-400">
+            ({{ selectedInGroup(tags) }})
+          </span>
+        </button>
+
+        <!-- Group chips -->
+        <div v-if="!collapsedGroups.has(groupName)" class="flex flex-wrap gap-1.5 mt-1">
+          <button
+            v-for="tag in tags"
+            :key="tag.name"
+            @click="toggleTag(tag.name)"
+            class="px-2.5 py-1 text-xs rounded-full border transition-colors"
+            :class="selectedTags.includes(tag.name)
+              ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
+              : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-600'"
+          >
+            {{ tag.name }}
+          </button>
+        </div>
+      </div>
+
       <button
         v-if="selectedTags.length > 0"
         @click="selectedTags.splice(0)"
-        class="px-2.5 py-1 text-xs rounded-full text-gray-500 hover:text-gray-300 transition-colors"
+        class="px-2.5 py-1 text-xs rounded-full text-gray-500 hover:text-gray-300 transition-colors mt-1"
       >
         清除筛选
       </button>
