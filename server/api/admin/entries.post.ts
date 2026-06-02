@@ -17,6 +17,11 @@ export default defineEventHandler(async (event) => {
       play_date: body.play_date,
       developer: body.developer,
       release_date: body.release_date,
+      game_type: body.game_type || 'VN',
+      dev_status: body.dev_status || '已发布',
+      platforms: body.platforms || [],
+      languages: body.languages || [],
+      links: body.links || [],
     })
     .select()
     .single()

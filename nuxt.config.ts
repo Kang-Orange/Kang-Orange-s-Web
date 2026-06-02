@@ -5,9 +5,9 @@ export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss'],
   app: {
     head: {
-      title: 'VN Gallery',
+      title: 'Game',
       meta: [
-        { name: 'description', content: 'Personal visual novel collection and reviews' }
+        { name: 'description', content: 'Personal game collection and reviews' }
       ],
     }
   },

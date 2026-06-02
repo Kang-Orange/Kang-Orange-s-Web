@@ -20,7 +20,7 @@ const styleMap: Record<string, string> = {
 
 <template>
   <span
-    class="text-xs px-2 py-0.5 rounded border"
+    class="text-[11px] px-1.5 py-0.5 rounded border font-bold"
     :class="styleMap[status]"
   >
     {{ labelMap[status] }}

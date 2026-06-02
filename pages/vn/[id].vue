@@ -23,7 +23,7 @@ const vn = computed(() => getVNById(Number(route.params.id)))
 
       <!-- Hero section -->
       <div class="flex flex-col md:flex-row gap-8 mt-6">
-        <div class="w-48 md:w-64 flex-shrink-0">
+        <div class="w-48 md:w-96 flex-shrink-0">
           <div class="rounded-lg overflow-hidden border border-gray-700">
             <img
               :src="vn.cover_url"
@@ -34,20 +34,77 @@ const vn = computed(() => getVNById(Number(route.params.id)))
         </div>
 
         <div class="flex-1 space-y-3">
-          <h1 class="text-2xl font-bold text-white">{{ vn.title }}</h1>
-          <p class="text-gray-400 italic">{{ vn.original_title }}</p>
-          <div class="flex items-center gap-2">
-            <RatingDisplay :rating="vn.rating" />
-            <StatusBadge :status="vn.status" />
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs px-2 py-0.5 rounded font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                {{ vn.game_type || 'VN' }}
+              </span>
+              <span v-if="vn.dev_status && vn.dev_status !== '已发布'" class="text-xs px-2 py-0.5 rounded font-bold border"
+                :class="vn.dev_status === '开发中' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-stone-500/20 text-stone-300 border-stone-500/30'">
+                {{ vn.dev_status }}
+              </span>
+              <span class="text-xs px-2 py-0.5 rounded font-bold border" :class="{
+                'bg-emerald-500/20 text-emerald-400 border-emerald-500/30': vn.status === 'completed',
+                'bg-blue-500/20 text-blue-400 border-blue-500/30': vn.status === 'playing',
+                'bg-gray-500/20 text-gray-400 border-gray-500/30': vn.status === 'plan_to_play',
+                'bg-red-500/20 text-red-400 border-red-500/30': vn.status === 'dropped'
+              }">
+                {{ { completed: '已完成', playing: '游玩中', plan_to_play: '计划中', dropped: '已弃坑' }[vn.status] }}
+              </span>
+            </div>
+            <PlatformIcons :platforms="vn.platforms || []" />
+          </div>
+          <h1 class="text-2xl font-bold text-white">{{ vn.title?.trim() || vn.original_title?.trim() || '(无标题)' }}</h1>
+          <p v-if="vn.title?.trim() && vn.original_title?.trim()" class="text-gray-400 italic">{{ vn.original_title }}</p>
+          <div>
+            <RatingDisplay :rating="vn.rating" size="md" />
           </div>
           <div class="text-gray-300 text-sm space-y-1">
             <p>开发商：{{ vn.developer }}</p>
             <p>发售日：{{ vn.release_date }}</p>
+            <p>通关日期：{{ vn.play_date }}</p>
             <p>游玩时长：{{ vn.play_time }}</p>
           </div>
           <TagList :tags="vn.tags" :max="99" />
         </div>
       </div>
+
+      <!-- Languages -->
+      <section v-if="vn.languages && vn.languages.length > 0" class="mt-10">
+        <h2 class="text-xl font-bold text-white border-l-4 border-indigo-500 pl-3 mb-4">语言</h2>
+        <div class="flex flex-wrap gap-2">
+          <span
+            v-for="lang in vn.languages"
+            :key="lang"
+            class="px-3 py-1 text-sm rounded-full bg-gray-800 text-gray-300 border border-gray-700/50"
+          >
+            {{ lang }}
+          </span>
+        </div>
+      </section>
+
+      <!-- Links -->
+      <section v-if="vn.links && vn.links.length > 0" class="mt-10">
+        <h2 class="text-xl font-bold text-white border-l-4 border-indigo-500 pl-3 mb-4">链接</h2>
+        <template v-for="linkType in (['acquisition', 'related'] as const)" :key="linkType">
+          <div v-if="vn.links.filter(l => l.type === linkType).length > 0" class="mb-4 last:mb-0">
+            <p class="text-gray-500 text-xs mb-2">{{ linkType === 'acquisition' ? '获取途径' : '相关链接' }}</p>
+            <div class="flex flex-wrap gap-2">
+              <a
+                v-for="(link, i) in vn.links.filter(l => l.type === linkType)"
+                :key="i"
+                :href="link.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700/50 text-gray-200 hover:text-white hover:border-gray-600 transition-colors group"
+              >
+                <LinkIcon :url="link.url" :icon="link.icon" />
+                <span>{{ link.name }}</span>
+              </a>
+            </div>
+          </div>
+        </template>
+      </section>
 
       <!-- Summary -->
       <section class="mt-10">

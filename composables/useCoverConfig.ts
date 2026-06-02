@@ -4,7 +4,7 @@
  */
 export const COVER_CONFIG = {
   /** Aspect ratio for cropping window and display container (width / height) */
-  aspectRatio: 3 / 4,
+  aspectRatio: 4 / 3,
   /** Max output width in pixels — cropped image is scaled down if wider */
   maxWidth: 1200,
   /** JPEG compression quality (0–1) */

@@ -1,3 +1,51 @@
+export const GAME_TYPES = ['VN', 'RPG', 'ACT', 'SLG', 'ADV', 'STG', 'OTHER'] as const
+export type GameType = typeof GAME_TYPES[number]
+
+export const DEV_STATUSES = ['已发布', '开发中', '停止开发'] as const
+export type DevStatus = typeof DEV_STATUSES[number]
+
+export const PLATFORMS = [
+  { id: 'windows', label: 'Windows' },
+  { id: 'macos', label: 'macOS' },
+  { id: 'linux', label: 'Linux' },
+  { id: 'android', label: 'Android' },
+  { id: 'ios', label: 'iOS' },
+  { id: 'web', label: 'Web' },
+] as const
+export type Platform = typeof PLATFORMS[number]['id']
+
+export const COMMON_LANGUAGES = ['日语', '英语', '简体中文', '繁体中文', '韩语'] as const
+
+export interface VNLink {
+  name: string
+  url: string
+  type: 'acquisition' | 'related'
+  icon?: string
+}
+
+export const LINK_ICONS = [
+  { id: 'aifadian', label: '爱发电' },
+  { id: 'apple-store', label: 'apple store' },
+  { id: 'bilibili', label: 'bilibili' },
+  { id: 'bluesky', label: 'bluesky' },
+  { id: 'booth', label: 'booth' },
+  { id: 'discord', label: 'discord' },
+  { id: 'facebook', label: 'facebook' },
+  { id: 'furaffinity', label: 'furaffinity' },
+  { id: 'github', label: 'github' },
+  { id: 'google-play', label: 'google play' },
+  { id: 'itch-io', label: 'itch.io' },
+  { id: 'patreon', label: 'patreon' },
+  { id: 'pixiv', label: 'pixiv' },
+  { id: 'QQ', label: 'QQ' },
+  { id: 'steam', label: 'steam' },
+  { id: 'telegram', label: 'telegram' },
+  { id: 'weibo', label: '微博' },
+  { id: 'x', label: 'X' },
+  { id: 'xiaohongshu', label: '小红书' },
+  { id: 'youtube', label: 'youtube' },
+] as const
+
 export interface VNEntry {
   id: number
   title: string
@@ -12,6 +60,11 @@ export interface VNEntry {
   tags: string[]
   developer: string
   release_date: string
+  game_type: string
+  dev_status: string
+  platforms: string[]
+  languages: string[]
+  links: VNLink[]
 }
 
 export type SortField = 'rating' | 'release_date' | 'play_date'
@@ -20,11 +73,12 @@ export type SortOrder = 'asc' | 'desc'
 const sortFieldLabels: Record<SortField, string> = {
   rating: '评分',
   release_date: 'VN 发行日期',
-  play_date: '游玩日期'
+  play_date: '通关日期'
 }
 
 const searchQuery = ref('')
 const selectedTags = ref<string[]>([])
+const selectedGameType = ref<string | null>(null)
 const sortField = ref<SortField>('release_date')
 const sortOrder = ref<SortOrder>('desc')
 const vnList = ref<VNEntry[]>([])
@@ -72,6 +126,10 @@ export function useVNData() {
       )
     }
 
+    if (selectedGameType.value) {
+      list = list.filter(v => (v.game_type || 'VN') === selectedGameType.value)
+    }
+
     if (selectedTags.value.length > 0) {
       list = list.filter(v =>
         selectedTags.value.every(tag => v.tags.includes(tag))
@@ -111,6 +169,7 @@ export function useVNData() {
     sortFieldLabels,
     searchQuery,
     selectedTags,
+    selectedGameType,
     sortField,
     sortOrder,
     filteredList,

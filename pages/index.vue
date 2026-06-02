@@ -1,15 +1,22 @@
 <script setup lang="ts">
-const { filteredList } = useVNData()
+const { filteredList, vnList } = useVNData()
+
+const hasActiveFilter = computed(() => filteredList.value.length !== (vnList.value || []).length)
 </script>
 
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-8">
       <h1 class="text-2xl font-bold text-white border-l-4 border-indigo-500 pl-4">
-        视觉小说
+        Game
       </h1>
       <p class="text-gray-500 text-sm mt-2 pl-5">
-        共 {{ filteredList.length }} 部作品
+        <template v-if="hasActiveFilter">
+          筛选出 {{ filteredList.length }} / 共 {{ (vnList || []).length }} 款游戏
+        </template>
+        <template v-else>
+          共 {{ (vnList || []).length }} 款游戏
+        </template>
       </p>
     </div>
 
