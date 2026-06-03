@@ -3,8 +3,8 @@ export default defineEventHandler(async (event) => {
   const supabase = getSupabaseAdmin()
   const body = await readBody(event)
 
-  const { data: entry, error } = await supabase
-    .from('entries')
+  const { data: game, error } = await supabase
+    .from('games')
     .insert({
       title: body.title,
       original_title: body.original_title,
@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
       play_date: body.play_date,
       developer: body.developer,
       release_date: body.release_date,
-      game_type: body.game_type || 'VN',
+      genre: body.genre || 'VN',
       dev_status: body.dev_status || '已发布',
       platforms: body.platforms || [],
       languages: body.languages || [],
@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
 
   if (error) throw createError({ statusCode: 500, message: error.message })
 
-  // Handle tags: lookup or create, then insert entry_tags
+  // Handle tags: lookup or create, then insert game_tags
   if (body.tags && body.tags.length > 0) {
     for (const tagName of body.tags) {
       let { data: tag } = await supabase.from('tags').select('id').eq('name', tagName).single()
@@ -37,10 +37,10 @@ export default defineEventHandler(async (event) => {
         tag = newTag
       }
       if (tag) {
-        await supabase.from('entry_tags').insert({ entry_id: entry.id, tag_id: tag.id })
+        await supabase.from('game_tags').insert({ game_id: game.id, tag_id: tag.id })
       }
     }
   }
 
-  return entry
+  return game
 })

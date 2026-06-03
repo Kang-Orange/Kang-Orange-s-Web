@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import type { SortField, SortOrder } from '~/composables/useVNData'
-import { GAME_TYPES } from '~/composables/useVNData'
+import type { SortField, SortOrder } from '~/composables/useGameData'
+import { GENRES } from '~/composables/useGameData'
 
 const {
   allTags,
   searchQuery,
   selectedTags,
-  selectedGameType,
+  selectedGenres,
   sortField,
   sortOrder,
   toggleTag,
+  toggleGenre,
   setSortField
-} = useVNData()
+} = useGameData()
 
 const sortFieldOptions: { value: SortField; label: string }[] = [
   { value: 'rating', label: '评分' },
@@ -28,7 +29,6 @@ const taggedGroups = computed(() => {
     groups[key].push(tag)
   }
   return Object.entries(groups).sort(([a], [b]) => {
-    // "其他" always last
     if (a === '其他') return 1
     if (b === '其他') return -1
     return a.localeCompare(b)
@@ -85,27 +85,27 @@ function selectedInGroup(tags: { name: string }[]) {
       </div>
     </div>
 
-    <!-- Game Type Filter + Filter Popup Trigger -->
+    <!-- Genre Filter + Filter Popup Trigger -->
     <div class="flex items-center justify-between">
-      <!-- Left: type filter -->
+      <!-- Left: genre filter -->
       <div class="flex items-center gap-2">
         <span class="text-xs text-gray-500 flex-shrink-0">类型</span>
         <div class="flex flex-wrap gap-1.5">
           <button
-            @click="selectedGameType = null"
+            @click="selectedGenres.splice(0)"
             class="px-2.5 py-1 text-xs rounded-full border transition-colors"
-            :class="selectedGameType === null
+            :class="selectedGenres.length === 0
               ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
               : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-600'"
           >
             ALL
           </button>
           <button
-            v-for="gt in GAME_TYPES"
+            v-for="gt in GENRES"
             :key="gt"
-            @click="selectedGameType = selectedGameType === gt ? null : gt"
+            @click="toggleGenre(gt)"
             class="px-2.5 py-1 text-xs rounded-full border transition-colors"
-            :class="selectedGameType === gt
+            :class="selectedGenres.includes(gt)
               ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
               : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-600'"
           >
@@ -123,7 +123,6 @@ function selectedInGroup(tags: { name: string }[]) {
             ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
             : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-600'"
         >
-          <!-- Funnel icon -->
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
           </svg>
@@ -138,21 +137,14 @@ function selectedInGroup(tags: { name: string }[]) {
               class="absolute left-4 right-4 top-20 sm:left-auto sm:right-6 sm:top-24 sm:w-72 max-h-[60vh] bg-gray-900 border border-gray-600 rounded-xl shadow-2xl shadow-black/70 overflow-hidden flex flex-col"
               @click.stop
             >
-              <!-- Popup header -->
               <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700">
                 <span class="text-sm font-semibold text-gray-200">过滤器</span>
-                <button
-                  @click="showFilterPopup = false"
-                  class="text-gray-500 hover:text-gray-300 transition-colors"
-                >
+                <button @click="showFilterPopup = false" class="text-gray-500 hover:text-gray-300 transition-colors">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               </div>
-
-              <!-- Popup body -->
               <div class="overflow-y-auto px-4 py-3 space-y-2">
                 <div v-for="[groupName, tags] in taggedGroups" :key="groupName">
-                  <!-- Group header -->
                   <button
                     @click="toggleGroup(groupName)"
                     class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors py-0.5"
@@ -165,8 +157,6 @@ function selectedInGroup(tags: { name: string }[]) {
                       ({{ selectedInGroup(tags) }})
                     </span>
                   </button>
-
-                  <!-- Group chips -->
                   <div v-if="!collapsedGroups.has(groupName)" class="flex flex-wrap gap-1.5 mt-1">
                     <button
                       v-for="tag in tags"
@@ -181,7 +171,6 @@ function selectedInGroup(tags: { name: string }[]) {
                     </button>
                   </div>
                 </div>
-
                 <button
                   v-if="selectedTags.length > 0"
                   @click="selectedTags.splice(0)"
@@ -197,15 +186,16 @@ function selectedInGroup(tags: { name: string }[]) {
     </div>
 
     <!-- Active Filter Chips -->
-    <div v-if="selectedGameType !== null || selectedTags.length > 0" class="flex items-center gap-2 flex-wrap">
+    <div v-if="selectedGenres.length > 0 || selectedTags.length > 0" class="flex items-center gap-2 flex-wrap">
       <span class="text-xs text-gray-500">当前筛选</span>
-      <!-- Game type chip -->
+      <!-- Genre chips -->
       <button
-        v-if="selectedGameType !== null"
-        @click="selectedGameType = null"
+        v-for="g in selectedGenres"
+        :key="g"
+        @click="toggleGenre(g)"
         class="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/25 transition-colors"
       >
-        {{ selectedGameType }}
+        {{ g }}
         <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
       <!-- Tag chips -->
@@ -220,7 +210,7 @@ function selectedInGroup(tags: { name: string }[]) {
       </button>
       <!-- Clear all -->
       <button
-        @click="selectedGameType = null; selectedTags.splice(0)"
+        @click="selectedGenres.splice(0); selectedTags.splice(0)"
         class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
       >
         清除全部

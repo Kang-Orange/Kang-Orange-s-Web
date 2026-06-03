@@ -1,5 +1,5 @@
-export const GAME_TYPES = ['VN', 'RPG', 'ACT', 'SLG', 'ADV', 'STG', 'OTHER'] as const
-export type GameType = typeof GAME_TYPES[number]
+export const GENRES = ['VN', 'RPG', 'ACT', 'SLG', 'ADV', 'STG', 'OTHER'] as const
+export type Genre = typeof GENRES[number]
 
 export const DEV_STATUSES = ['已发布', '开发中', '停止开发'] as const
 export type DevStatus = typeof DEV_STATUSES[number]
@@ -16,7 +16,7 @@ export type Platform = typeof PLATFORMS[number]['id']
 
 export const COMMON_LANGUAGES = ['日语', '英语', '简体中文', '繁体中文', '韩语'] as const
 
-export interface VNLink {
+export interface GameLink {
   name: string
   url: string
   type: 'acquisition' | 'related'
@@ -46,7 +46,7 @@ export const LINK_ICONS = [
   { id: 'youtube', label: 'youtube' },
 ] as const
 
-export interface VNEntry {
+export interface GameEntry {
   id: number
   title: string
   original_title: string
@@ -60,11 +60,11 @@ export interface VNEntry {
   tags: string[]
   developer: string
   release_date: string
-  game_type: string
+  genre: string
   dev_status: string
   platforms: string[]
   languages: string[]
-  links: VNLink[]
+  links: GameLink[]
 }
 
 export type SortField = 'rating' | 'release_date' | 'play_date'
@@ -72,29 +72,29 @@ export type SortOrder = 'asc' | 'desc'
 
 const sortFieldLabels: Record<SortField, string> = {
   rating: '评分',
-  release_date: 'VN 发行日期',
+  release_date: '发行日期',
   play_date: '通关日期'
 }
 
 const searchQuery = ref('')
 const selectedTags = ref<string[]>([])
-const selectedGameType = ref<string | null>(null)
+const selectedGenres = ref<string[]>([])
 const sortField = ref<SortField>('release_date')
 const sortOrder = ref<SortOrder>('desc')
-const vnList = ref<VNEntry[]>([])
+const gameList = ref<GameEntry[]>([])
 const allTags = ref<{ name: string; category: string | null }[]>([])
 
-export function useVNData() {
-  const { data: vnEntries } = useAsyncData<VNEntry[]>('vn-entries', () => $fetch('/api/entries'), { default: () => vnList.value })
-  const { data: vnTags } = useAsyncData<{ name: string; category: string | null }[]>('vn-tags', () => $fetch('/api/tags'), { default: () => allTags.value })
+export function useGameData() {
+  const { data: gameEntries, pending } = useAsyncData<GameEntry[]>('game-entries', () => $fetch('/api/games'), { default: () => gameList.value })
+  const { data: gameTags } = useAsyncData<{ name: string; category: string | null }[]>('game-tags', () => $fetch('/api/tags'), { default: () => allTags.value })
 
   // Immediately sync available data (covers SSR re-render and client hydration)
-  if (vnEntries.value && vnEntries.value.length > 0) vnList.value = vnEntries.value
-  if (vnTags.value && vnTags.value.length > 0) allTags.value = vnTags.value
+  if (gameEntries.value && gameEntries.value.length > 0) gameList.value = gameEntries.value
+  if (gameTags.value && gameTags.value.length > 0) allTags.value = gameTags.value
 
   // Also watch for later updates (e.g. client-side re-fetch after browser back)
-  watch(vnEntries, (v) => { if (v && v.length > 0) vnList.value = v })
-  watch(vnTags, (t) => { if (t && t.length > 0) allTags.value = t })
+  watch(gameEntries, (v) => { if (v && v.length > 0) gameList.value = v })
+  watch(gameTags, (t) => { if (t && t.length > 0) allTags.value = t })
 
   function toggleTag(tag: string) {
     const idx = selectedTags.value.indexOf(tag)
@@ -102,6 +102,15 @@ export function useVNData() {
       selectedTags.value.push(tag)
     } else {
       selectedTags.value.splice(idx, 1)
+    }
+  }
+
+  function toggleGenre(genre: string) {
+    const idx = selectedGenres.value.indexOf(genre)
+    if (idx === -1) {
+      selectedGenres.value.push(genre)
+    } else {
+      selectedGenres.value.splice(idx, 1)
     }
   }
 
@@ -115,7 +124,7 @@ export function useVNData() {
   }
 
   const filteredList = computed(() => {
-    let list = [...(vnList.value || [])]
+    let list = [...(gameList.value || [])]
 
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.trim().toLowerCase()
@@ -126,8 +135,8 @@ export function useVNData() {
       )
     }
 
-    if (selectedGameType.value) {
-      list = list.filter(v => (v.game_type || 'VN') === selectedGameType.value)
+    if (selectedGenres.value.length > 0) {
+      list = list.filter(v => selectedGenres.value.includes(v.genre || 'VN'))
     }
 
     if (selectedTags.value.length > 0) {
@@ -155,27 +164,29 @@ export function useVNData() {
     return list
   })
 
-  const getVNById = (id: number): VNEntry | undefined =>
-    (vnList.value || []).find(v => v.id === id)
+  const getGameById = (id: number): GameEntry | undefined =>
+    (gameList.value || []).find(v => v.id === id)
 
-  function refreshVNData() {
-    refreshNuxtData('vn-entries')
-    refreshNuxtData('vn-tags')
+  function refreshGameData() {
+    refreshNuxtData('game-entries')
+    refreshNuxtData('game-tags')
   }
 
   return {
-    vnList,
+    gameList,
     allTags,
     sortFieldLabels,
     searchQuery,
     selectedTags,
-    selectedGameType,
+    selectedGenres,
     sortField,
     sortOrder,
     filteredList,
+    pending,
     toggleTag,
+    toggleGenre,
     setSortField,
-    getVNById,
-    refreshVNData
+    getGameById,
+    refreshGameData
   }
 }

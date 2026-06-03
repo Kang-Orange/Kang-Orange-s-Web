@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { VNEntry } from '~/composables/useVNData'
-import { GAME_TYPES, DEV_STATUSES, PLATFORMS, COMMON_LANGUAGES, LINK_ICONS } from '~/composables/useVNData'
+import type { GameEntry } from '~/composables/useGameData'
+import { GENRES, DEV_STATUSES, PLATFORMS, COMMON_LANGUAGES, LINK_ICONS } from '~/composables/useGameData'
 
 definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
 const router = useRouter()
-const { refreshVNData } = useVNData()
+const { refreshGameData } = useGameData()
 
 const isNew = computed(() => route.params.id === 'new')
 const id = computed(() => isNew.value ? null : Number(route.params.id))
@@ -84,13 +84,13 @@ const form = ref({
   summary: '',
   cover_url: '',
   rating: 8,
-  status: 'completed' as VNEntry['status'],
+  status: 'completed' as GameEntry['status'],
   review: '',
   play_time: '',
   play_date: '',
   developer: '',
   release_date: '',
-  game_type: 'VN',
+  genre: 'VN',
   dev_status: '已发布',
 })
 
@@ -190,7 +190,7 @@ async function addTag() {
 
 // Load existing entry
 if (!isNew.value) {
-  const { data } = useAsyncData<VNEntry>('admin-edit-entry', () => useRequestFetch()('/api/admin/entries'))
+  const { data } = useAsyncData<GameEntry>('admin-edit-game', () => useRequestFetch()('/api/admin/games'))
   watch(data, (entry) => {
     if (!entry) return
     // Find the target entry from the list
@@ -208,7 +208,7 @@ if (!isNew.value) {
         play_date: found.play_date,
         developer: found.developer,
         release_date: found.release_date,
-        game_type: found.game_type || 'VN',
+        genre: found.genre || 'VN',
         dev_status: found.dev_status || '已发布',
       }
       selectedTags.value = [...found.tags]
@@ -244,9 +244,9 @@ async function save() {
     }
 
     if (isNew.value) {
-      await $fetch('/api/admin/entries', { method: 'POST', body: payload })
+      await $fetch('/api/admin/games', { method: 'POST', body: payload })
     } else {
-      await $fetch(`/api/admin/entries/${id.value}`, { method: 'PUT', body: payload })
+      await $fetch(`/api/admin/games/${id.value}`, { method: 'PUT', body: payload })
     }
 
     // Clean up old cover from Storage if replaced
@@ -257,7 +257,7 @@ async function save() {
       }
     }
 
-    await refreshVNData()
+    await refreshGameData()
     await router.push('/admin')
   } catch (e: any) {
     alert(e.message || 'Save failed')
@@ -276,9 +276,9 @@ function cancelEdit() {
 
 <template>
   <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <NuxtLink to="/admin" class="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
-      &larr; 返回管理
-    </NuxtLink>
+    <button @click="router.back()" class="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+      &larr; 返回上一级
+    </button>
 
     <h1 class="text-2xl font-bold text-white border-l-4 border-indigo-500 pl-4 mt-4 mb-8">
       {{ isNew ? '新建' : '编辑' }}
@@ -350,10 +350,10 @@ function cancelEdit() {
         <div>
           <label class="block text-gray-400 text-sm mb-1">游戏类型</label>
           <select
-            v-model="form.game_type"
+            v-model="form.genre"
             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
           >
-            <option v-for="gt in GAME_TYPES" :key="gt" :value="gt">{{ gt }}</option>
+            <option v-for="gt in GENRES" :key="gt" :value="gt">{{ gt }}</option>
           </select>
         </div>
         <div>

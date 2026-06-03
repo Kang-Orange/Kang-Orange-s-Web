@@ -1,11 +1,11 @@
 export default defineEventHandler(async () => {
   const supabase = getSupabase()
 
-  const { data: entries, error } = await supabase
-    .from('entries')
+  const { data: games, error } = await supabase
+    .from('games')
     .select(`
       *,
-      entry_tags (
+      game_tags (
         tags ( name )
       )
     `)
@@ -15,9 +15,9 @@ export default defineEventHandler(async () => {
     throw createError({ statusCode: 500, message: error.message })
   }
 
-  const result = entries.map((entry: any) => ({
-    ...entry,
-    tags: entry.entry_tags.map((et: any) => et.tags.name)
+  const result = games.map((game: any) => ({
+    ...game,
+    tags: game.game_tags.map((gt: any) => gt.tags.name)
   }))
 
   return result

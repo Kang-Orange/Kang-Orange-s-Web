@@ -3,7 +3,7 @@ definePageMeta({ middleware: ['auth'] })
 
 const { data: categories, refresh: refreshCats } = useAsyncData('admin-categories', () => useRequestFetch()('/api/admin/categories'))
 const { data: allTags, refresh: refreshTags } = useAsyncData<{ id: number; name: string; category_id: number | null }[]>('admin-tags-manage', () => useRequestFetch()('/api/admin/tags'))
-const { refreshVNData } = useVNData()
+const { refreshGameData } = useGameData()
 
 // ---- Category CRUD ----
 const newCatName = ref('')
@@ -51,20 +51,20 @@ async function createTag() {
   newTagName.value = ''
   newTagCat.value = null
   await refreshTags()
-  refreshVNData()
+  refreshGameData()
 }
 
 async function updateTagCategory(tagId: number, categoryId: number | null) {
   await $fetch(`/api/admin/tags/${tagId}`, { method: 'PUT', body: { category_id: categoryId } })
   await refreshTags()
-  refreshVNData()
+  refreshGameData()
 }
 
 async function deleteTag(id: number, name: string) {
-  if (!confirm(`Delete tag "${name}"? It will be removed from all entries.`)) return
+  if (!confirm(`Delete tag "${name}"? It will be removed from all games.`)) return
   await $fetch(`/api/admin/tags/${id}`, { method: 'DELETE' })
   await refreshTags()
-  refreshVNData()
+  refreshGameData()
 }
 </script>
 

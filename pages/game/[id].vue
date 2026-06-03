@@ -1,23 +1,23 @@
 <script setup lang="ts">
 const route = useRoute()
-const { getVNById } = useVNData()
+const { getGameById } = useGameData()
 
-const vn = computed(() => getVNById(Number(route.params.id)))
+const game = computed(() => getGameById(Number(route.params.id)))
 </script>
 
 <template>
   <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Error state: invalid ID -->
-    <div v-if="!vn" class="text-center py-20">
+    <div v-if="!game" class="text-center py-20">
       <p class="text-gray-400 text-lg mb-4">找不到该作品</p>
-      <NuxtLink to="/" class="text-indigo-400 hover:text-indigo-300 transition-colors">
+      <NuxtLink to="/game/" class="text-indigo-400 hover:text-indigo-300 transition-colors">
         &larr; 返回列表
       </NuxtLink>
     </div>
 
     <template v-else>
       <!-- Back link -->
-      <NuxtLink to="/" class="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+      <NuxtLink to="/game/" class="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
         &larr; 返回列表
       </NuxtLink>
 
@@ -26,8 +26,8 @@ const vn = computed(() => getVNById(Number(route.params.id)))
         <div class="w-48 md:w-96 flex-shrink-0">
           <div class="rounded-lg overflow-hidden border border-gray-700">
             <img
-              :src="vn.cover_url"
-              :alt="vn.title"
+              :src="game.cover_url"
+              :alt="game.title"
               :style="{ aspectRatio: useCoverConfig().aspectRatio }" class="w-full object-cover"
             />
           </div>
@@ -37,44 +37,44 @@ const vn = computed(() => getVNById(Number(route.params.id)))
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-xs px-2 py-0.5 rounded font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                {{ vn.game_type || 'VN' }}
+                {{ game.genre || 'VN' }}
               </span>
-              <span v-if="vn.dev_status && vn.dev_status !== '已发布'" class="text-xs px-2 py-0.5 rounded font-bold border"
-                :class="vn.dev_status === '开发中' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-stone-500/20 text-stone-300 border-stone-500/30'">
-                {{ vn.dev_status }}
+              <span v-if="game.dev_status && game.dev_status !== '已发布'" class="text-xs px-2 py-0.5 rounded font-bold border"
+                :class="game.dev_status === '开发中' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-stone-500/20 text-stone-300 border-stone-500/30'">
+                {{ game.dev_status }}
               </span>
               <span class="text-xs px-2 py-0.5 rounded font-bold border" :class="{
-                'bg-emerald-500/20 text-emerald-400 border-emerald-500/30': vn.status === 'completed',
-                'bg-blue-500/20 text-blue-400 border-blue-500/30': vn.status === 'playing',
-                'bg-gray-500/20 text-gray-400 border-gray-500/30': vn.status === 'plan_to_play',
-                'bg-red-500/20 text-red-400 border-red-500/30': vn.status === 'dropped'
+                'bg-emerald-500/20 text-emerald-400 border-emerald-500/30': game.status === 'completed',
+                'bg-blue-500/20 text-blue-400 border-blue-500/30': game.status === 'playing',
+                'bg-gray-500/20 text-gray-400 border-gray-500/30': game.status === 'plan_to_play',
+                'bg-red-500/20 text-red-400 border-red-500/30': game.status === 'dropped'
               }">
-                {{ { completed: '已完成', playing: '游玩中', plan_to_play: '计划中', dropped: '已弃坑' }[vn.status] }}
+                {{ { completed: '已完成', playing: '游玩中', plan_to_play: '计划中', dropped: '已弃坑' }[game.status] }}
               </span>
             </div>
-            <PlatformIcons :platforms="vn.platforms || []" />
+            <PlatformIcons :platforms="game.platforms || []" />
           </div>
-          <h1 class="text-2xl font-bold text-white">{{ vn.title?.trim() || vn.original_title?.trim() || '(无标题)' }}</h1>
-          <p v-if="vn.title?.trim() && vn.original_title?.trim()" class="text-gray-400 italic">{{ vn.original_title }}</p>
+          <h1 class="text-2xl font-bold text-white">{{ game.title?.trim() || game.original_title?.trim() || '(无标题)' }}</h1>
+          <p v-if="game.title?.trim() && game.original_title?.trim()" class="text-gray-400 italic">{{ game.original_title }}</p>
           <div>
-            <RatingDisplay :rating="vn.rating" size="md" />
+            <RatingDisplay :rating="game.rating" size="md" />
           </div>
-          <div class="text-gray-300 text-sm space-y-1">
-            <p>开发商：{{ vn.developer }}</p>
-            <p>发售日：{{ vn.release_date }}</p>
-            <p>通关日期：{{ vn.play_date }}</p>
-            <p>游玩时长：{{ vn.play_time }}</p>
+          <div v-if="game.developer || game.release_date || game.play_date || game.play_time" class="text-gray-300 text-sm space-y-1">
+            <p v-if="game.developer">制作组/制作人员：{{ game.developer }}</p>
+            <p v-if="game.release_date">发售日：{{ game.release_date }}</p>
+            <p v-if="game.play_date">通关日期：{{ game.play_date }}</p>
+            <p v-if="game.play_time">游玩时长：{{ game.play_time }}</p>
           </div>
-          <TagList :tags="vn.tags" :max="99" />
+          <TagList :tags="game.tags" :max="99" />
         </div>
       </div>
 
       <!-- Languages -->
-      <section v-if="vn.languages && vn.languages.length > 0" class="mt-10">
+      <section v-if="game.languages && game.languages.length > 0" class="mt-10">
         <h2 class="text-xl font-bold text-white border-l-4 border-indigo-500 pl-3 mb-4">语言</h2>
         <div class="flex flex-wrap gap-2">
           <span
-            v-for="lang in vn.languages"
+            v-for="lang in game.languages"
             :key="lang"
             class="px-3 py-1 text-sm rounded-full bg-gray-800 text-gray-300 border border-gray-700/50"
           >
@@ -84,14 +84,14 @@ const vn = computed(() => getVNById(Number(route.params.id)))
       </section>
 
       <!-- Links -->
-      <section v-if="vn.links && vn.links.length > 0" class="mt-10">
+      <section v-if="game.links && game.links.length > 0" class="mt-10">
         <h2 class="text-xl font-bold text-white border-l-4 border-indigo-500 pl-3 mb-4">链接</h2>
         <template v-for="linkType in (['acquisition', 'related'] as const)" :key="linkType">
-          <div v-if="vn.links.filter(l => l.type === linkType).length > 0" class="mb-4 last:mb-0">
+          <div v-if="game.links.filter(l => l.type === linkType).length > 0" class="mb-4 last:mb-0">
             <p class="text-gray-500 text-xs mb-2">{{ linkType === 'acquisition' ? '获取途径' : '相关链接' }}</p>
             <div class="flex flex-wrap gap-2">
               <a
-                v-for="(link, i) in vn.links.filter(l => l.type === linkType)"
+                v-for="(link, i) in game.links.filter(l => l.type === linkType)"
                 :key="i"
                 :href="link.url"
                 target="_blank"
@@ -107,16 +107,16 @@ const vn = computed(() => getVNById(Number(route.params.id)))
       </section>
 
       <!-- Summary -->
-      <section class="mt-10">
+      <section v-if="game.summary" class="mt-10">
         <h2 class="text-xl font-bold text-white border-l-4 border-indigo-500 pl-3 mb-4">简介</h2>
-        <p class="text-gray-300 leading-relaxed">{{ vn.summary }}</p>
+        <p class="text-gray-300 leading-relaxed">{{ game.summary }}</p>
       </section>
 
       <!-- Review -->
-      <section v-if="vn.review" class="mt-10">
+      <section v-if="game.review" class="mt-10">
         <h2 class="text-xl font-bold text-white border-l-4 border-indigo-500 pl-3 mb-4">个人评测</h2>
         <div class="bg-gray-800 border border-gray-700/50 rounded-lg p-6">
-          <p class="text-gray-300 leading-relaxed whitespace-pre-line">{{ vn.review }}</p>
+          <p class="text-gray-300 leading-relaxed whitespace-pre-line">{{ game.review }}</p>
         </div>
       </section>
     </template>

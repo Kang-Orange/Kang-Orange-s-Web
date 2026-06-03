@@ -5,9 +5,9 @@ export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss'],
   app: {
     head: {
-      title: 'Game',
+      title: '田园犬的狗窝',
       meta: [
-        { name: 'description', content: 'Personal game collection and reviews' }
+        { name: 'description', content: '个人游戏收藏与评测' }
       ],
     }
   },
