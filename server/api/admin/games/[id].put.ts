@@ -16,7 +16,6 @@ export default defineEventHandler(async (event) => {
       review: body.review,
       play_time: body.play_time,
       play_date: body.play_date,
-      developer: body.developer,
       release_date: body.release_date,
       genre: body.genre || 'VN',
       dev_status: body.dev_status || '已发布',
@@ -42,6 +41,31 @@ export default defineEventHandler(async (event) => {
       }
       if (tag) {
         await supabase.from('game_tags').insert({ game_id: id, tag_id: tag.id })
+      }
+    }
+  }
+
+  // Handle developers — auto-create if name doesn't exist
+  await supabase.from('game_developer_links').delete().eq('game_id', id)
+
+  if (body.developers && body.developers.length > 0) {
+    for (const dev of body.developers) {
+      let devId = dev.id
+      if (!devId) {
+        const { data: existing } = await supabase.from('game_developers').select('id').eq('name', dev.name).single()
+        if (existing) {
+          devId = existing.id
+        } else {
+          const { data: created } = await supabase.from('game_developers').insert({ name: dev.name }).select('id').single()
+          devId = created?.id
+        }
+      }
+      if (devId) {
+        await supabase.from('game_developer_links').insert({
+          game_id: id,
+          developer_id: devId,
+          role: dev.role || '',
+        })
       }
     }
   }

@@ -2,6 +2,9 @@
 definePageMeta({ middleware: ['auth'] })
 
 const { gameList } = useGameData()
+const { novelList } = useNovelData()
+const { data: authorList } = useAsyncData('admin-authors-count', () => useRequestFetch()('/api/admin/authors'))
+const { data: seriesList } = useAsyncData('admin-series-count', () => useRequestFetch()('/api/admin/series'))
 
 const sections = computed(() => [
   {
@@ -13,17 +16,24 @@ const sections = computed(() => [
   },
   {
     title: '小说',
-    count: null,
-    description: '即将推出',
-    to: '',
-    available: false,
+    count: (novelList.value || []).length,
+    description: '小说管理',
+    to: '/admin/novels',
+    available: true,
   },
   {
     title: '作者',
-    count: null,
-    description: '即将推出',
-    to: '',
-    available: false,
+    count: (authorList.value || []).length,
+    description: '作者管理',
+    to: '/admin/authors',
+    available: true,
+  },
+  {
+    title: '系列',
+    count: (seriesList.value || []).length,
+    description: '系列管理',
+    to: '/admin/series',
+    available: true,
   },
   {
     title: '分类 & 标签',

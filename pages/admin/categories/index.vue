@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
+const router = useRouter()
 const { data: categories, refresh: refreshCats } = useAsyncData('admin-categories', () => useRequestFetch()('/api/admin/categories'))
 const { data: allTags, refresh: refreshTags } = useAsyncData<{ id: number; name: string; category_id: number | null }[]>('admin-tags-manage', () => useRequestFetch()('/api/admin/tags'))
 const { refreshGameData } = useGameData()
@@ -70,9 +71,9 @@ async function deleteTag(id: number, name: string) {
 
 <template>
   <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <NuxtLink to="/admin" class="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
-      &larr; 返回管理
-    </NuxtLink>
+    <button @click="router.back()" class="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+      &larr; 返回上一级
+    </button>
 
     <h1 class="text-2xl font-bold text-white border-l-4 border-indigo-500 pl-4 mt-4 mb-8">
       分类 & 标签管理

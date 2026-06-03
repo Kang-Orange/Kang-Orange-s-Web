@@ -46,6 +46,12 @@ export const LINK_ICONS = [
   { id: 'youtube', label: 'youtube' },
 ] as const
 
+export interface GameDeveloper {
+  id: number
+  name: string
+  role: string
+}
+
 export interface GameEntry {
   id: number
   title: string
@@ -58,7 +64,7 @@ export interface GameEntry {
   play_time: string
   play_date: string
   tags: string[]
-  developer: string
+  developers: GameDeveloper[]
   release_date: string
   genre: string
   dev_status: string

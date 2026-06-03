@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { GameEntry } from '~/composables/useGameData'
-import { GENRES, DEV_STATUSES, PLATFORMS, COMMON_LANGUAGES, LINK_ICONS } from '~/composables/useGameData'
+import type { NovelEntry } from '~/composables/useNovelData'
+import { LINK_ICONS } from '~/composables/useGameData'
 
 definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
 const router = useRouter()
-const { refreshGameData } = useGameData()
+const { refreshNovelData } = useNovelData()
 
 const isNew = computed(() => route.params.id === 'new')
 const id = computed(() => isNew.value ? null : Number(route.params.id))
@@ -25,17 +25,13 @@ const { $supabase } = useNuxtApp()
 function onCoverFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (cropSource.value) {
-    URL.revokeObjectURL(cropSource.value)
-  }
+  if (cropSource.value) URL.revokeObjectURL(cropSource.value)
   cropSource.value = URL.createObjectURL(file)
   showCropper.value = true
 }
 
 function onCropConfirm(blob: Blob) {
-  if (coverPreviewUrl.value) {
-    URL.revokeObjectURL(coverPreviewUrl.value)
-  }
+  if (coverPreviewUrl.value) URL.revokeObjectURL(coverPreviewUrl.value)
   const file = new File([blob], 'cover.jpg', { type: 'image/jpeg' })
   pendingCoverFile.value = file
   coverPreviewUrl.value = URL.createObjectURL(blob)
@@ -52,9 +48,7 @@ function onCropCancel() {
 }
 
 function clearPendingCover() {
-  if (coverPreviewUrl.value) {
-    URL.revokeObjectURL(coverPreviewUrl.value)
-  }
+  if (coverPreviewUrl.value) URL.revokeObjectURL(coverPreviewUrl.value)
   pendingCoverFile.value = null
   coverPreviewUrl.value = null
   coverInputKey.value++
@@ -84,57 +78,53 @@ const form = ref({
   summary: '',
   cover_url: '',
   rating: 8,
-  status: 'completed' as GameEntry['status'],
+  status: 'plan_to_read' as NovelEntry['status'],
   review: '',
-  play_time: '',
-  play_date: '',
-  developer: '',
+  read_time: '',
+  read_date: '',
   release_date: '',
-  genre: 'VN',
-  dev_status: '已发布',
+  word_count: null as number | null,
+  publisher: '',
+  series: '',
+  series_order: null as number | null,
 })
 
 // Tags
-const { data: allTags } = useAsyncData<{ id: number; name: string; category_id: number | null }[]>('admin-tags', () => useRequestFetch()('/api/admin/tags'))
-const { data: categories } = useAsyncData<{ id: number; name: string }[]>('admin-categories-edit', () => useRequestFetch()('/api/admin/categories'))
+const { data: allTags } = useAsyncData<{ id: number; name: string; category_id: number | null }[]>('admin-novel-tags', () => useRequestFetch()('/api/admin/tags'))
+const { data: categories } = useAsyncData<{ id: number; name: string }[]>('admin-novel-categories', () => useRequestFetch()('/api/admin/categories'))
+const { data: seriesOptions } = useAsyncData<{ id: number; name: string }[]>('admin-novel-series-options', () => useRequestFetch()('/api/admin/series'))
 const selectedTags = ref<string[]>([])
 const newTagName = ref('')
 const newTagCategory = ref<number | null>(null)
 
-// Platforms
-const selectedPlatforms = ref<string[]>([])
-function togglePlatform(id: string) {
-  const idx = selectedPlatforms.value.indexOf(id)
-  if (idx === -1) selectedPlatforms.value.push(id)
-  else selectedPlatforms.value.splice(idx, 1)
+// Authors
+interface AuthorEntry {
+  name: string
+  role: string
+  id?: number
+}
+const authorList = ref<AuthorEntry[]>([])
+
+function addAuthor() {
+  authorList.value.push({ name: '', role: 'writer' })
 }
 
-// Languages
-const selectedLanguages = ref<string[]>([])
-const newLanguage = ref('')
-function toggleLanguage(lang: string) {
-  const idx = selectedLanguages.value.indexOf(lang)
-  if (idx === -1) selectedLanguages.value.push(lang)
-  else selectedLanguages.value.splice(idx, 1)
-}
-function addLanguage() {
-  const name = newLanguage.value.trim()
-  if (name && !selectedLanguages.value.includes(name)) {
-    selectedLanguages.value.push(name)
-  }
-  newLanguage.value = ''
+function removeAuthor(index: number) {
+  authorList.value.splice(index, 1)
 }
 
 // Links
-const linkList = ref<{ name: string; url: string; type: 'acquisition' | 'related'; icon?: string }[]>([])
+const linkList = ref<{ name: string; url: string; type: 'reading'; icon?: string }[]>([])
+
 function addLink() {
-  linkList.value.push({ name: '', url: '', type: 'acquisition', icon: undefined })
+  linkList.value.push({ name: '', url: '', type: 'reading', icon: undefined })
 }
+
 function removeLink(index: number) {
   linkList.value.splice(index, 1)
 }
 
-// Group tags by category_id for display
+// Group tags by category
 const taggedGroups = computed(() => {
   const catMap = new Map<number | null, string>()
   ;(categories.value || []).forEach(c => catMap.set(c.id, c.name))
@@ -182,7 +172,6 @@ async function addTag() {
 
   const created = await $fetch('/api/admin/tags', { method: 'POST', body })
   selectedTags.value.push(created.name)
-  // Refresh tag list
   allTags.value?.push(created)
   newTagName.value = ''
   newTagCategory.value = null
@@ -190,11 +179,10 @@ async function addTag() {
 
 // Load existing entry
 if (!isNew.value) {
-  const { data } = useAsyncData<GameEntry>('admin-edit-game', () => useRequestFetch()('/api/admin/games'))
-  watch(data, (entry) => {
-    if (!entry) return
-    // Find the target entry from the list
-    const found = Array.isArray(entry) ? entry.find((e: any) => e.id === id.value) : null
+  const { data } = useAsyncData<NovelEntry[]>('admin-edit-novel', () => useRequestFetch()('/api/admin/novels'))
+  watch(data, (entries) => {
+    if (!entries) return
+    const found = Array.isArray(entries) ? entries.find((e: any) => e.id === id.value) : null
     if (found) {
       form.value = {
         title: found.title,
@@ -204,16 +192,16 @@ if (!isNew.value) {
         rating: found.rating,
         status: found.status,
         review: found.review,
-        play_time: found.play_time,
-        play_date: found.play_date,
-        developer: found.developer,
-        release_date: found.release_date,
-        genre: found.genre || 'VN',
-        dev_status: found.dev_status || '已发布',
+        read_time: found.read_time,
+        read_date: found.read_date,
+        release_date: found.release_date || '',
+        word_count: found.word_count,
+        publisher: found.publisher,
+        series: found.series,
+        series_order: found.series_order,
       }
       selectedTags.value = [...found.tags]
-      selectedPlatforms.value = [...(found.platforms || [])]
-      selectedLanguages.value = [...(found.languages || [])]
+      authorList.value = (found.authors || []).map((a: any) => ({ name: a.name, role: a.role || 'writer', id: a.id }))
       linkList.value = (found.links || []).map((l: any) => ({ ...l }))
       originalCoverUrl.value = found.cover_url || null
     }
@@ -227,7 +215,6 @@ async function save() {
   saving.value = true
 
   try {
-    // Upload cover to Storage first (if a new file was selected)
     if (pendingCoverFile.value) {
       uploading.value = true
       const newUrl = await uploadToStorage(pendingCoverFile.value)
@@ -238,18 +225,16 @@ async function save() {
     const payload = {
       ...form.value,
       tags: selectedTags.value,
-      platforms: selectedPlatforms.value,
-      languages: selectedLanguages.value,
+      authors: authorList.value.filter(a => a.name.trim()),
       links: linkList.value,
     }
 
     if (isNew.value) {
-      await $fetch('/api/admin/games', { method: 'POST', body: payload })
+      await $fetch('/api/admin/novels', { method: 'POST', body: payload })
     } else {
-      await $fetch(`/api/admin/games/${id.value}`, { method: 'PUT', body: payload })
+      await $fetch(`/api/admin/novels/${id.value}`, { method: 'PUT', body: payload })
     }
 
-    // Clean up old cover from Storage if replaced
     if (originalCoverUrl.value && originalCoverUrl.value !== form.value.cover_url) {
       const oldPath = getStoragePath(originalCoverUrl.value)
       if (oldPath) {
@@ -257,7 +242,7 @@ async function save() {
       }
     }
 
-    await refreshGameData()
+    await refreshNovelData()
     await router.push('/admin')
   } catch (e: any) {
     alert(e.message || 'Save failed')
@@ -267,9 +252,7 @@ async function save() {
 }
 
 function cancelEdit() {
-  if (coverPreviewUrl.value) {
-    URL.revokeObjectURL(coverPreviewUrl.value)
-  }
+  if (coverPreviewUrl.value) URL.revokeObjectURL(coverPreviewUrl.value)
   router.push('/admin')
 }
 </script>
@@ -281,7 +264,7 @@ function cancelEdit() {
     </button>
 
     <h1 class="text-2xl font-bold text-white border-l-4 border-indigo-500 pl-4 mt-4 mb-8">
-      {{ isNew ? '新建' : '编辑' }}
+      {{ isNew ? '新建小说' : '编辑小说' }}
     </h1>
 
     <div v-if="loading" class="text-center py-20 text-gray-500">加载中...</div>
@@ -308,8 +291,6 @@ function cancelEdit() {
       <!-- Cover Image -->
       <div>
         <label class="block text-gray-400 text-sm mb-1">封面图片</label>
-
-        <!-- Upload -->
         <div class="flex items-center gap-2 mb-2">
           <label class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors cursor-pointer">
             {{ pendingCoverFile ? '更换图片' : '选择图片' }}
@@ -325,46 +306,25 @@ function cancelEdit() {
           </button>
           <span v-else class="text-xs text-gray-500">或粘贴链接</span>
         </div>
-
-        <!-- URL input -->
         <input
           v-model="form.cover_url"
           type="url"
           placeholder="https://..."
           class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 text-sm"
         />
-
-        <!-- Preview -->
         <div v-if="coverPreviewUrl || form.cover_url" class="mt-2 w-48">
           <img
             :src="coverPreviewUrl || form.cover_url"
             alt="Cover preview"
-            :style="{ aspectRatio: useCoverConfig().aspectRatio }" class="w-full object-cover rounded border border-gray-700"
+            :style="{ aspectRatio: useCoverConfig().novelAspectRatio }"
+            class="w-full object-cover rounded border border-gray-700"
             @error="($event.target as HTMLImageElement).style.display = 'none'"
           />
         </div>
       </div>
 
-      <!-- Game Type + Dev Status + Rating + Status -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <label class="block text-gray-400 text-sm mb-1">游戏类型</label>
-          <select
-            v-model="form.genre"
-            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
-          >
-            <option v-for="gt in GENRES" :key="gt" :value="gt">{{ gt }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-gray-400 text-sm mb-1">开发状态</label>
-          <select
-            v-model="form.dev_status"
-            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
-          >
-            <option v-for="ds in DEV_STATUSES" :key="ds" :value="ds">{{ ds }}</option>
-          </select>
-        </div>
+      <!-- Rating + Status + Word Count -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label class="block text-gray-400 text-sm mb-1">评分</label>
           <input
@@ -383,110 +343,118 @@ function cancelEdit() {
             v-model="form.status"
             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
           >
-            <option value="completed">已完成</option>
-            <option value="playing">游玩中</option>
-            <option value="plan_to_play">计划中</option>
+            <option value="completed">已读完</option>
+            <option value="reading">阅读中</option>
+            <option value="plan_to_read">想读</option>
             <option value="dropped">已弃坑</option>
           </select>
         </div>
+        <div>
+          <label class="block text-gray-400 text-sm mb-1">字数</label>
+          <input
+            v-model.number="form.word_count"
+            type="number"
+            min="0"
+            placeholder="选填"
+            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
+          />
+        </div>
       </div>
 
-      <!-- Developer + Play Time + Play Date + Release Date -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Publisher + Series + Series Order + Read Date + Release Date + Read Time -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <div>
-          <label class="block text-gray-400 text-sm mb-1">开发商</label>
+          <label class="block text-gray-400 text-sm mb-1">出版社</label>
           <input
-            v-model="form.developer"
+            v-model="form.publisher"
             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
           />
         </div>
         <div>
-          <label class="block text-gray-400 text-sm mb-1">游玩时长</label>
+          <label class="block text-gray-400 text-sm mb-1">所属系列</label>
           <input
-            v-model="form.play_time"
-            placeholder="例：30 小时"
+            v-model="form.series"
+            placeholder="例：物语系列"
+            list="series-datalist"
+            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
+          />
+          <datalist id="series-datalist">
+            <option v-for="s in (seriesOptions || [])" :key="s.id" :value="s.name" />
+          </datalist>
+        </div>
+        <div>
+          <label class="block text-gray-400 text-sm mb-1">系列顺序</label>
+          <input
+            v-model.number="form.series_order"
+            type="number"
+            min="1"
+            placeholder="1"
             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
           />
         </div>
         <div>
-          <label class="block text-gray-400 text-sm mb-1">通关日期</label>
+          <label class="block text-gray-400 text-sm mb-1">读完日期</label>
           <input
-            v-model="form.play_date"
+            v-model="form.read_date"
             type="date"
             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
           />
         </div>
         <div>
-          <label class="block text-gray-400 text-sm mb-1">发售日</label>
+          <label class="block text-gray-400 text-sm mb-1">发表时间</label>
           <input
             v-model="form.release_date"
             type="date"
             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
           />
         </div>
-      </div>
-
-      <!-- Platforms -->
-      <div>
-        <label class="block text-gray-400 text-sm mb-1">平台</label>
-        <div class="flex flex-wrap gap-2">
-          <label v-for="p in PLATFORMS" :key="p.id" class="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              :checked="selectedPlatforms.includes(p.id)"
-              @change="togglePlatform(p.id)"
-              class="w-3.5 h-3.5 rounded bg-gray-800 border-gray-600 text-indigo-500 focus:ring-0 focus:ring-offset-0"
-            />
-            <span class="text-sm text-gray-300">{{ p.label }}</span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Languages -->
-      <div>
-        <label class="block text-gray-400 text-sm mb-1">语言</label>
-        <div class="flex flex-wrap gap-2 mb-2">
-          <button
-            v-for="lang in COMMON_LANGUAGES"
-            :key="lang"
-            type="button"
-            @click="toggleLanguage(lang)"
-            class="px-2.5 py-1 text-xs rounded-full border transition-colors"
-            :class="selectedLanguages.includes(lang)
-              ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
-              : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-600'"
-          >
-            {{ lang }}
-          </button>
-        </div>
-        <div class="flex gap-2">
+        <div>
+          <label class="block text-gray-400 text-sm mb-1">阅读时长</label>
           <input
-            v-model="newLanguage"
-            type="text"
-            placeholder="其他语言..."
-            class="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
-            @keyup.enter.prevent="addLanguage"
+            v-model="form.read_time"
+            placeholder="例：3 天"
+            class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
           />
+        </div>
+      </div>
+
+      <!-- Authors -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-gray-400 text-sm">作者</label>
           <button
             type="button"
-            @click="addLanguage"
-            class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors"
+            @click="addAuthor"
+            class="px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-lg transition-colors"
           >
-            添加
+            + 添加作者
           </button>
         </div>
-        <!-- Custom added languages as chips -->
-        <div v-if="selectedLanguages.length > 0" class="flex flex-wrap gap-1.5 mt-2">
-          <span
-            v-for="lang in selectedLanguages"
-            :key="lang"
-            class="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
-          >
-            {{ lang }}
-            <button type="button" @click="toggleLanguage(lang)" class="text-indigo-400 hover:text-indigo-200">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <div v-if="authorList.length === 0" class="text-gray-600 text-xs">暂无作者</div>
+        <div v-else class="space-y-3">
+          <div v-for="(author, i) in authorList" :key="i" class="flex items-center gap-2">
+            <input
+              v-model="author.name"
+              type="text"
+              placeholder="名称"
+              class="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 focus:outline-none focus:border-indigo-500/50 text-sm"
+            />
+            <select
+              v-model="author.role"
+              class="w-24 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-400 text-sm focus:outline-none focus:border-indigo-500/50"
+            >
+              <option value="writer">执笔</option>
+              <option value="illustrator">插画</option>
+              <option value="original_work">原作</option>
+            </select>
+            <button
+              type="button"
+              @click="removeAuthor(i)"
+              class="text-red-400 hover:text-red-300 text-xs flex-shrink-0"
+            >
+              删除
             </button>
-          </span>
+          </div>
         </div>
       </div>
 
@@ -513,8 +481,6 @@ function cancelEdit() {
       <!-- Tags -->
       <div>
         <label class="block text-gray-400 text-sm mb-2">标签</label>
-
-        <!-- Grouped tag selection -->
         <div class="space-y-2 mb-3">
           <div v-for="[groupName, tags] in taggedGroups" :key="groupName">
             <button
@@ -541,8 +507,6 @@ function cancelEdit() {
             </div>
           </div>
         </div>
-
-        <!-- New tag input -->
         <div class="flex gap-2">
           <input
             v-model="newTagName"
@@ -571,7 +535,7 @@ function cancelEdit() {
       <!-- Links -->
       <div>
         <div class="flex items-center justify-between mb-2">
-          <label class="text-gray-400 text-sm">链接</label>
+          <label class="text-gray-400 text-sm">阅读链接</label>
           <button
             type="button"
             @click="addLink"
@@ -605,13 +569,6 @@ function cancelEdit() {
                 >
                   <option value="">无图标</option>
                   <option v-for="ico in LINK_ICONS" :key="ico.id" :value="ico.id">{{ ico.label }}</option>
-                </select>
-                <select
-                  v-model="link.type"
-                  class="px-2 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-400 text-xs focus:outline-none focus:border-indigo-500/50"
-                >
-                  <option value="acquisition">获取途径</option>
-                  <option value="related">相关链接</option>
                 </select>
                 <button
                   type="button"
@@ -648,6 +605,7 @@ function cancelEdit() {
     <CropModal
       v-if="showCropper && cropSource"
       :src="cropSource"
+      :aspectRatio="useCoverConfig().novelAspectRatio"
       @crop="onCropConfirm"
       @cancel="onCropCancel"
     />

@@ -31,7 +31,7 @@ const secondaryTitle = computed(() => {
       </h3>
 
       <!-- Developer -->
-      <p class="text-gray-500 text-xs truncate h-4">{{ game.developer || '' }}</p>
+      <p class="text-gray-500 text-xs truncate h-4">{{ (game.developers || []).map(d => d.name).join('、') || '' }}</p>
 
       <!-- Rating + Status -->
       <div class="flex items-center justify-between">

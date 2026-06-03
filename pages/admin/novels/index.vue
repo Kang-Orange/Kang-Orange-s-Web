@@ -1,26 +1,25 @@
 <script setup lang="ts">
-import type { GameEntry } from '~/composables/useGameData'
-import { GENRES } from '~/composables/useGameData'
+import type { NovelEntry } from '~/composables/useNovelData'
 
 definePageMeta({ middleware: ['auth'] })
 
-const { data: entries, pending, refresh } = useAsyncData<GameEntry[]>('admin-games', () => useRequestFetch()('/api/admin/games'))
-const { refreshGameData, allTags } = useGameData()
+const { data: entries, pending, refresh } = useAsyncData<NovelEntry[]>('admin-novels', () => useRequestFetch()('/api/admin/novels'))
+const { refreshNovelData, novelAllTags } = useNovelData()
 
 // Search & filter state
 const searchQuery = ref('')
 const selectedTags = ref<string[]>([])
-const selectedGenres = ref<string[]>([])
-const sortField = ref<'rating' | 'release_date' | 'play_date'>('release_date')
+const selectedSeries = ref<string | null>(null)
+const sortField = ref<'rating' | 'read_date' | 'word_count'>('read_date')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
 const sortFieldLabels: Record<string, string> = {
   rating: '评分',
-  release_date: '发行日期',
-  play_date: '通关日期'
+  read_date: '读完日期',
+  word_count: '字数',
 }
 
-// Delete confirmation state
+// Delete confirmation
 const deletingId = ref<number | null>(null)
 let deleteTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -33,15 +32,6 @@ function toggleTag(tag: string) {
   }
 }
 
-function toggleGenre(genre: string) {
-  const idx = selectedGenres.value.indexOf(genre)
-  if (idx === -1) {
-    selectedGenres.value.push(genre)
-  } else {
-    selectedGenres.value.splice(idx, 1)
-  }
-}
-
 function setSortField(field: typeof sortField.value) {
   if (sortField.value === field) {
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
@@ -51,10 +41,19 @@ function setSortField(field: typeof sortField.value) {
   }
 }
 
-// Group tags by category for filter UI
+// All unique series
+const allSeries = computed(() => {
+  const set = new Set<string>()
+  for (const n of (entries.value || [])) {
+    if (n.series) set.add(n.series)
+  }
+  return [...set].sort()
+})
+
+// Group tags by category
 const taggedGroups = computed(() => {
   const groups: Record<string, { name: string; category: string | null }[]> = {}
-  for (const tag of allTags.value) {
+  for (const tag of novelAllTags.value) {
     const key = tag.category || '其他'
     if (!groups[key]) groups[key] = []
     groups[key].push(tag)
@@ -68,6 +67,7 @@ const taggedGroups = computed(() => {
 
 const collapsedGroups = ref<Set<string>>(new Set())
 const showFilterPopup = ref(false)
+
 function toggleGroup(name: string) {
   if (collapsedGroups.value.has(name)) {
     collapsedGroups.value.delete(name)
@@ -75,6 +75,7 @@ function toggleGroup(name: string) {
     collapsedGroups.value.add(name)
   }
 }
+
 function selectedInGroup(tags: { name: string }[]) {
   return tags.filter(t => selectedTags.value.includes(t.name)).length
 }
@@ -89,8 +90,8 @@ const filteredList = computed(() => {
     )
   }
 
-  if (selectedGenres.value.length > 0) {
-    list = list.filter(e => selectedGenres.value.includes(e.genre || 'VN'))
+  if (selectedSeries.value) {
+    list = list.filter(e => e.series === selectedSeries.value)
   }
 
   if (selectedTags.value.length > 0) {
@@ -103,11 +104,11 @@ const filteredList = computed(() => {
       case 'rating':
         cmp = a.rating - b.rating
         break
-      case 'release_date':
-        cmp = a.release_date.localeCompare(b.release_date)
+      case 'read_date':
+        cmp = a.read_date.localeCompare(b.read_date)
         break
-      case 'play_date':
-        cmp = a.play_date.localeCompare(b.play_date)
+      case 'word_count':
+        cmp = (a.word_count || 0) - (b.word_count || 0)
         break
     }
     return sortOrder.value === 'desc' ? -cmp : cmp
@@ -128,11 +129,11 @@ function cancelDelete() {
 }
 
 async function confirmDelete(id: number) {
-  await $fetch(`/api/admin/games/${id}`, { method: 'DELETE' })
+  await $fetch(`/api/admin/novels/${id}`, { method: 'DELETE' })
   deletingId.value = null
   if (deleteTimer) clearTimeout(deleteTimer)
   await refresh()
-  await refreshGameData()
+  await refreshNovelData()
 }
 </script>
 
@@ -141,7 +142,7 @@ async function confirmDelete(id: number) {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-white border-l-4 border-indigo-500 pl-4">
-        游戏管理
+        小说管理
       </h1>
       <div class="flex items-center gap-4">
         <NuxtLink
@@ -151,10 +152,10 @@ async function confirmDelete(id: number) {
           分类 & 标签
         </NuxtLink>
         <NuxtLink
-          to="/admin/games/edit/new"
+          to="/admin/novels/edit/new"
           class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors"
         >
-          + 添加游戏
+          + 添加小说
         </NuxtLink>
       </div>
     </div>
@@ -173,7 +174,7 @@ async function confirmDelete(id: number) {
         </div>
         <div class="flex gap-1">
           <button
-            v-for="opt in (['rating', 'release_date', 'play_date'] as const)"
+            v-for="opt in (['rating', 'read_date', 'word_count'] as const)"
             :key="opt"
             @click="setSortField(opt)"
             class="px-3 py-2 text-xs rounded-lg border transition-colors"
@@ -189,35 +190,8 @@ async function confirmDelete(id: number) {
         </div>
       </div>
 
-      <!-- Genre Filter + Tag Filter -->
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500 flex-shrink-0">类型</span>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              @click="selectedGenres.splice(0)"
-              class="px-2.5 py-1 text-xs rounded-full border transition-colors"
-              :class="selectedGenres.length === 0
-                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
-                : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-600'"
-            >
-              ALL
-            </button>
-            <button
-              v-for="gt in GENRES"
-              :key="gt"
-              @click="toggleGenre(gt)"
-              class="px-2.5 py-1 text-xs rounded-full border transition-colors"
-              :class="selectedGenres.includes(gt)
-                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
-                : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-600'"
-            >
-              {{ gt }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Tag filter popup -->
+      <!-- Tag Filter -->
+      <div class="flex items-center justify-end">
         <div class="relative">
           <button
             @click="showFilterPopup = !showFilterPopup"
@@ -281,17 +255,8 @@ async function confirmDelete(id: number) {
       </div>
 
       <!-- Active Filter Chips -->
-      <div v-if="selectedGenres.length > 0 || selectedTags.length > 0" class="flex items-center gap-2 flex-wrap">
+      <div v-if="selectedTags.length > 0" class="flex items-center gap-2 flex-wrap">
         <span class="text-xs text-gray-500">当前筛选</span>
-        <button
-          v-for="g in selectedGenres"
-          :key="g"
-          @click="toggleGenre(g)"
-          class="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/25 transition-colors"
-        >
-          {{ g }}
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </button>
         <button
           v-for="tag in selectedTags"
           :key="tag"
@@ -302,7 +267,7 @@ async function confirmDelete(id: number) {
           <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
         <button
-          @click="selectedGenres.splice(0); selectedTags.length = 0"
+          @click="selectedTags.length = 0"
           class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
         >
           清除全部
@@ -312,7 +277,7 @@ async function confirmDelete(id: number) {
 
     <!-- Result count -->
     <p class="text-gray-500 text-sm mb-4 pl-1">
-      {{ filteredList.length }} / {{ (entries || []).length }} 款
+      {{ filteredList.length }} / {{ (entries || []).length }} 部
     </p>
 
     <!-- Grid -->
@@ -325,21 +290,18 @@ async function confirmDelete(id: number) {
         :key="entry.id"
         class="group relative bg-gray-800 rounded-lg overflow-hidden border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 hover:scale-[1.03] hover:shadow-xl hover:shadow-indigo-500/10"
       >
-        <CoverImage :src="entry.cover_url" :alt="entry.title" :type="entry.genre" />
+        <CoverImage :src="entry.cover_url" :alt="entry.title" :aspectRatio="useCoverConfig().novelAspectRatio" />
         <div class="p-3 space-y-1.5">
           <h3 class="text-white font-bold text-sm truncate" :title="(entry.title?.trim() || entry.original_title?.trim() || '(无标题)') + (entry.title?.trim() && entry.original_title?.trim() ? ' / ' + entry.original_title : '')">
             {{ entry.title?.trim() || entry.original_title?.trim() || '(无标题)' }}<span v-if="entry.title?.trim() && entry.original_title?.trim()" class="text-gray-500 font-normal"> / {{ entry.original_title }}</span>
           </h3>
-          <p class="text-gray-500 text-xs truncate h-4">{{ (entry.developers || []).map(d => d.name).join('、') || '' }}</p>
+          <p class="text-gray-500 text-xs truncate h-4">
+            {{ entry.authors?.[0]?.name || '' }}
+            <span v-if="entry.series" class="text-indigo-400/70"> · {{ entry.series }}</span>
+          </p>
           <div class="flex items-center justify-between">
             <RatingDisplay :rating="entry.rating" size="sm" />
-            <div class="flex items-center gap-1">
-              <span v-if="entry.dev_status && entry.dev_status !== '已发布'" class="text-[11px] px-1.5 py-0.5 rounded font-bold border"
-                :class="entry.dev_status === '开发中' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-stone-500/20 text-stone-300 border-stone-500/30'">
-                {{ entry.dev_status }}
-              </span>
-              <StatusBadge :status="entry.status" />
-            </div>
+            <StatusBadge :status="entry.status" />
           </div>
           <TagList :tags="entry.tags" :max="3" />
           <p v-if="entry.review || entry.summary" class="text-gray-500 text-xs italic leading-tight line-clamp-1">
@@ -348,7 +310,7 @@ async function confirmDelete(id: number) {
         </div>
         <div class="absolute inset-0 bg-gray-950/80 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2">
           <NuxtLink
-            :to="'/admin/games/edit/' + entry.id"
+            :to="'/admin/novels/edit/' + entry.id"
             class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors w-24 text-center"
           >
             编辑
@@ -381,7 +343,7 @@ async function confirmDelete(id: number) {
     <!-- Empty state -->
     <div v-else-if="!pending" class="text-center py-20">
       <p class="text-gray-500 text-lg">
-        {{ (entries || []).length === 0 ? '暂无游戏' : '没有找到匹配的条目' }}
+        {{ (entries || []).length === 0 ? '暂无小说' : '没有找到匹配的条目' }}
       </p>
       <p v-if="(entries || []).length > 0" class="text-gray-600 text-sm mt-2">
         试试调整筛选条件或搜索词
@@ -391,7 +353,7 @@ async function confirmDelete(id: number) {
     <!-- Loading skeleton -->
     <div v-if="pending" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       <div v-for="n in 8" :key="n" class="bg-gray-800 rounded-lg overflow-hidden border border-gray-700/50 animate-pulse">
-        <div :style="{ aspectRatio: useCoverConfig().aspectRatio }" class="bg-gray-700" />
+        <div :style="{ aspectRatio: useCoverConfig().novelAspectRatio }" class="bg-gray-700" />
         <div class="p-3 space-y-2">
           <div class="h-4 bg-gray-700 rounded w-3/4" />
           <div class="flex items-center justify-between">

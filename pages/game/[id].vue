@@ -59,8 +59,15 @@ const game = computed(() => getGameById(Number(route.params.id)))
           <div>
             <RatingDisplay :rating="game.rating" size="md" />
           </div>
-          <div v-if="game.developer || game.release_date || game.play_date || game.play_time" class="text-gray-300 text-sm space-y-1">
-            <p v-if="game.developer">制作组/制作人员：{{ game.developer }}</p>
+          <div v-if="(game.developers && game.developers.length > 0) || game.release_date || game.play_date || game.play_time" class="text-gray-300 text-sm space-y-1">
+            <p v-if="game.developers && game.developers.length > 0">
+              制作组/制作人员：
+              <template v-for="(d, i) in game.developers" :key="d.id">
+                <span>{{ d.name }}</span>
+                <span v-if="d.role" class="text-gray-500 text-xs ml-0.5">（{{ d.role }}）</span>
+                <span v-if="i < game.developers.length - 1">、</span>
+              </template>
+            </p>
             <p v-if="game.release_date">发售日：{{ game.release_date }}</p>
             <p v-if="game.play_date">通关日期：{{ game.play_date }}</p>
             <p v-if="game.play_time">游玩时长：{{ game.play_time }}</p>

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 defineProps<{
-  status: 'completed' | 'playing' | 'plan_to_play' | 'dropped'
+  status: 'completed' | 'playing' | 'plan_to_play' | 'dropped' | 'reading' | 'plan_to_read'
 }>()
 
 const labelMap: Record<string, string> = {
   completed: '已完成',
   playing: '游玩中',
   plan_to_play: '计划中',
-  dropped: '已弃坑'
+  dropped: '已弃坑',
+  reading: '阅读中',
+  plan_to_read: '想读',
 }
 
 const styleMap: Record<string, string> = {
